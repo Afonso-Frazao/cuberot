@@ -7,6 +7,10 @@
 #define CHARNUM 7 // number of different characters
 #define COLNUM 37
 #define ROWNUM 16
+#define EDGESIZE 8
+
+#define RED_COLOR "\033[38;5;9m"
+#define RESET_COLOR "\033[0m"
 
 typedef struct _cart {
   double x; // the viewpoint of the user will be to the yz plane with
@@ -19,6 +23,20 @@ typedef struct _sphr {
   double t; // horizontal angle
   double f; // vertical angle
 } sphr;
+
+typedef struct _edge {
+  int a;
+  int b;
+} edge;
+
+typedef struct _param { // parametric equations
+  double xslope;
+  double xintercept;
+  double yslope;
+  double yintercept;
+  double zslope;
+  double zintercept;
+} param;
 
 double sqr(double x) { return x * x; }
 
@@ -88,6 +106,41 @@ void initcube(cart *ccube) {
   return;
 }
 
+void initedges(cart *ccube, edge *edgeindexes) {
+  int i, j, k, l, buff;
+
+  int vertexesarr[4] = {1, 2, 4, 7};
+
+  l = 0;                    // edgeindexes index
+  for (i = 0; i < 4; i++) { // i is the vertexesarr index
+    buff = vertexesarr[i];
+    for (j = 0; j < 8; j++) { // j is the current index being compared
+      k = 0;                  // k is the number of equal coordinates
+      if (ccube[buff].x == ccube[j].x) {
+        k++;
+      }
+      if (ccube[buff].y == ccube[j].y) {
+        k++;
+      }
+      if (ccube[buff].z == ccube[j].z) {
+        k++;
+      }
+      if (k == 2) {
+        edgeindexes[l].a = vertexesarr[i];
+        edgeindexes[l].b = j;
+        l++;
+      }
+    }
+  }
+
+  /*for (i = 0; i < 12; i++) {
+    printf("edge %d %d\n", edgeindexes[i].a, edgeindexes[i].b);
+  }
+  exit(0);*/
+
+  return;
+}
+
 void carttosphr(cart *ccube, sphr *scube) {
   int i;
 
@@ -95,14 +148,6 @@ void carttosphr(cart *ccube, sphr *scube) {
     scube[i].r = sqrt(sqr(ccube[i].x) + sqr(ccube[i].y) + sqr(ccube[i].z));
     scube[i].t = atan2(ccube[i].y, ccube[i].x);
     scube[i].f = atan2(sqrt(sqr(ccube[i].x) + sqr(ccube[i].y)), ccube[i].z);
-    // scube[i].f = acos(ccube[i].z / scube[i].r);
-    //  scube[i].f = asin(sqrt(sqr(ccube[i].x) + sqr(ccube[i].y)) / scube[i].r);
-    /*if (ccube[i].y < 0) {
-      scube[i].t += M_PI;
-    }*/
-    /*if ((ccube[i].x * ccube[i].y) < 0) {
-      scube[i].f = -scube[i].f;
-    }*/
   }
 
   return;
@@ -120,17 +165,8 @@ void sphrtocart(cart *ccube, sphr *scube) {
   return;
 }
 
-void printcube(cart *ccube) {
-  int i, j;
-  int **grid;
-
-  // the char proportions are approximately c*r -> 16x37
-
-  grid = (int **)malloc(ROWNUM * sizeof(int *));
-  for (i = 0; i < ROWNUM; i++) {
-    grid[i] = (int *)calloc(COLNUM, sizeof(int));
-  }
-
+void calccube(cart *ccube, int **grid, edge *edgeindexes) {
+  int i;
   double cstep, rstep;
 
   cstep = ((double)(2 * sqrt(3) * HEDGE)) / (COLNUM);
@@ -164,26 +200,95 @@ void printcube(cart *ccube) {
     dregions[i] = ((i + 1) * dstep) - (HEDGE * sqrt(3));
   }
 
-  for (i = 0; i < 8; i++) {
+  for (i = 0; i < 8; i++) { // negative indexes for the vertexes
     indexc = findindex(ccube[i].y, cregions);
     indexr = findindex(ccube[i].z, rregions);
-    indexd = findindex(ccube[i].x, dregions);
-    indexd++; // so that the index isn't zero
-    if (grid[indexr][indexc] < indexd) {
+    indexd = -findindex(ccube[i].x, dregions);
+    indexd--; // so that the index isn't zero
+    if (grid[indexr][indexc] > indexd) {
       grid[indexr][indexc] = indexd;
     }
   }
 
+  double j;
+  int x1, x2, y1, y2, z1, z2;
+  param *edges;
+  double ystep, zstep;
+
+  edges = (param *)malloc(12 * sizeof(param));
+
+  for (i = 0; i < 12; i++) { // get the parametric edge equations
+    x1 = ccube[edgeindexes[i].a].x;
+    x2 = ccube[edgeindexes[i].b].x;
+    y1 = ccube[edgeindexes[i].a].y;
+    y2 = ccube[edgeindexes[i].b].y;
+    z1 = ccube[edgeindexes[i].a].z;
+    z2 = ccube[edgeindexes[i].b].z;
+
+    edges[i].xintercept = x1;
+    edges[i].xslope = x2 - x1;
+    edges[i].yintercept = y1;
+    edges[i].yslope = y2 - y1;
+    edges[i].zintercept = z1;
+    edges[i].zslope = z2 - z1;
+  }
+
+  // ystep = ((double)(2 * sqrt(3) * HEDGE)) / (COLNUM - 2);
+  // zstep = ((double)(2 * sqrt(3) * HEDGE)) / (COLNUM - 2);
+
+  for (i = 0; i < 12; i++) { // calculate the points of the edges
+    for (j = ((double)1) / EDGESIZE; j < 1; j += ((double)1) / EDGESIZE) {
+      indexc = findindex(edges[i].yintercept + (edges[i].yslope * j), cregions);
+      indexr = findindex(edges[i].zintercept + (edges[i].zslope * j), rregions);
+      indexd = findindex(edges[i].xintercept + (edges[i].xslope * j), dregions);
+      indexd++; // so that the index isn't zero
+      if (grid[indexr][indexc] >= 0) {
+        if (grid[indexr][indexc] < indexd) {
+          grid[indexr][indexc] = indexd;
+        }
+      }
+    }
+  }
+
+  free(edges);
+
   free(cregions);
   free(rregions);
   free(dregions);
+
+  return;
+}
+
+void calcedges(cart *ccube, int **grid, edge *edgeindexes) {
+  int i, j;
+  return;
+}
+
+void printcube(cart *ccube, edge *edgeindexes) {
+  int i, j;
+  int **grid;
+
+  // the char proportions are approximately c*r -> 16x37
+
+  grid = (int **)malloc(ROWNUM * sizeof(int *));
+  for (i = 0; i < ROWNUM; i++) {
+    grid[i] = (int *)calloc(COLNUM, sizeof(int));
+  }
+
+  calccube(ccube, grid, edgeindexes);
+
+  // calcedges(ccube, grid, edgeindexes);
 
   // time to print
 
   for (i = 0; i < ROWNUM; i++) {
     for (j = 0; j < COLNUM; j++) {
       if (grid[i][j] != 0) {
-        printf("%c", decodechar(grid[i][j]));
+        if (grid[i][j] < 0) { // print vertices
+          printf(RED_COLOR "%c" RESET_COLOR, decodechar(-grid[i][j]));
+        } else { // print edges
+          printf("%c", decodechar(grid[i][j]));
+        }
       } else {
         printf(" ");
       }
@@ -212,7 +317,13 @@ int main() {
 
   carttosphr(ccube, scube);
 
-  double j = 0.1;
+  edge *edgeindexes;
+
+  edgeindexes = (edge *)malloc(12 * sizeof(edge));
+
+  initedges(ccube, edgeindexes);
+
+  double j = 0.05;
 
   for (i = 0; i < 30; i++) {
 
@@ -232,9 +343,9 @@ int main() {
 
     sphrtocart(ccube, scube);
 
-    printf("\033[H\033[J");
+    printf("\033[H\033[J"); // clear board
 
-    printcube(ccube);
+    printcube(ccube, edgeindexes);
     printf("teta: %lf\nfi: %lf\n", scube[0].t / M_PI, scube[0].f / M_PI);
 
     usleep(500000);
@@ -242,6 +353,7 @@ int main() {
 
   free(ccube);
   free(scube);
+  free(edgeindexes);
 
   return 0;
 }
