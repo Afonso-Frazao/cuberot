@@ -80,6 +80,11 @@ void initcube(cart *ccube) {
     k = -k;
   }
 
+  /*for (i = 0; i < 8; i++) {
+    printf("%lf\t%lf\t%lf\n", ccube[i].x, ccube[i].y, ccube[i].z);
+  }
+  exit(0);*/
+
   return;
 }
 
@@ -90,6 +95,14 @@ void carttosphr(cart *ccube, sphr *scube) {
     scube[i].r = sqrt(sqr(ccube[i].x) + sqr(ccube[i].y) + sqr(ccube[i].z));
     scube[i].t = atan2(ccube[i].y, ccube[i].x);
     scube[i].f = atan2(sqrt(sqr(ccube[i].x) + sqr(ccube[i].y)), ccube[i].z);
+    // scube[i].f = acos(ccube[i].z / scube[i].r);
+    //  scube[i].f = asin(sqrt(sqr(ccube[i].x) + sqr(ccube[i].y)) / scube[i].r);
+    /*if (ccube[i].y < 0) {
+      scube[i].t += M_PI;
+    }*/
+    /*if ((ccube[i].x * ccube[i].y) < 0) {
+      scube[i].f = -scube[i].f;
+    }*/
   }
 
   return;
@@ -197,23 +210,32 @@ int main() {
 
   initcube(ccube);
 
-  double j = 0.2;
-  // double j = 0.3;
+  carttosphr(ccube, scube);
+
+  double j = 0.1;
 
   for (i = 0; i < 30; i++) {
-    carttosphr(ccube, scube);
 
     for (i = 0; i < 8; i++) {
-      // scube[i].t += 0.1;
-      scube[i].f += j;
+      scube[i].t += 0.1;
+      /*if (scube[i].f >= 0) {
+        scube[i].f += j;
+      } else {
+        scube[i].f -= j;
+      }*/
     }
-    // j = -j;
+    for (i = 0; i < 8; i += 2) {
+      scube[i].f += j;
+      scube[i + 1].f += j;
+      j = -j;
+    }
 
     sphrtocart(ccube, scube);
 
     printf("\033[H\033[J");
 
     printcube(ccube);
+    printf("teta: %lf\nfi: %lf\n", scube[0].t / M_PI, scube[0].f / M_PI);
 
     usleep(500000);
   }
