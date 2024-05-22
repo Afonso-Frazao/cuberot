@@ -5,9 +5,12 @@
 
 #define HEDGE 50  // half edge size
 #define CHARNUM 7 // number of different characters
-#define COLNUM 37
-#define ROWNUM 16
-#define EDGESIZE 8
+// #define COLNUM 37
+#define COLNUM 74
+// #define ROWNUM 16
+#define ROWNUM 32
+// #define EDGESIZE 8
+#define EDGESIZE 16
 
 #define RED_COLOR "\033[38;5;9m"
 #define RESET_COLOR "\033[0m"
