@@ -4,13 +4,13 @@
 #include <unistd.h>
 
 #define HEDGE 50  // half edge size
-#define CHARNUM 7 // number of different characters
+#define CHARNUM 9 // number of different characters
 // #define COLNUM 37
 #define COLNUM 74
 // #define ROWNUM 16
 #define ROWNUM 32
 // #define EDGESIZE 8
-#define EDGESIZE 16
+#define EDGESIZE 24
 
 #define RED_COLOR "\033[38;5;9m"
 #define RESET_COLOR "\033[0m"
@@ -63,13 +63,17 @@ char decodechar(int num) {
   case 3:
     return ';';
   case 4:
-    return 'u';
+    return '|';
   case 5:
-    return 'o';
+    return '/';
   case 6:
-    return 'O';
+    return 'U';
   case 7:
+    return 'X';
+  case 8:
     return '0';
+  case 9:
+    return '8';
   default: // TODO remove this later
     perror("Error");
     exit(1);
@@ -101,11 +105,6 @@ void initcube(cart *ccube) {
     k = -k;
   }
 
-  /*for (i = 0; i < 8; i++) {
-    printf("%lf\t%lf\t%lf\n", ccube[i].x, ccube[i].y, ccube[i].z);
-  }
-  exit(0);*/
-
   return;
 }
 
@@ -136,11 +135,6 @@ void initedges(cart *ccube, edge *edgeindexes) {
     }
   }
 
-  /*for (i = 0; i < 12; i++) {
-    printf("edge %d %d\n", edgeindexes[i].a, edgeindexes[i].b);
-  }
-  exit(0);*/
-
   return;
 }
 
@@ -157,7 +151,7 @@ void carttosphr(cart *ccube, sphr *scube) {
 }
 
 void sphrtocart(cart *ccube, sphr *scube) {
-  int i, j;
+  int i;
 
   for (i = 0; i < 8; i++) {
     ccube[i].x = scube[i].r * cos(scube[i].t) * sin(scube[i].f);
@@ -213,10 +207,8 @@ void calccube(cart *ccube, int **grid, edge *edgeindexes) {
     }
   }
 
-  double j;
   int x1, x2, y1, y2, z1, z2;
   param *edges;
-  double ystep, zstep;
 
   edges = (param *)malloc(12 * sizeof(param));
 
@@ -236,17 +228,22 @@ void calccube(cart *ccube, int **grid, edge *edgeindexes) {
     edges[i].zslope = z2 - z1;
   }
 
-  // ystep = ((double)(2 * sqrt(3) * HEDGE)) / (COLNUM - 2);
-  // zstep = ((double)(2 * sqrt(3) * HEDGE)) / (COLNUM - 2);
+  double j;
+  double step;
+  step = (double)1 / EDGESIZE;
 
   for (i = 0; i < 12; i++) { // calculate the points of the edges
-    for (j = ((double)1) / EDGESIZE; j < 1; j += ((double)1) / EDGESIZE) {
+    for (j = step; j < 1; j += step) {
       indexc = findindex(edges[i].yintercept + (edges[i].yslope * j), cregions);
       indexr = findindex(edges[i].zintercept + (edges[i].zslope * j), rregions);
       indexd = findindex(edges[i].xintercept + (edges[i].xslope * j), dregions);
       indexd++; // so that the index isn't zero
       if (grid[indexr][indexc] >= 0) {
         if (grid[indexr][indexc] < indexd) {
+          grid[indexr][indexc] = indexd;
+        }
+      } else {
+        if ((-grid[indexr][indexc]) < indexd) {
           grid[indexr][indexc] = indexd;
         }
       }
@@ -259,11 +256,6 @@ void calccube(cart *ccube, int **grid, edge *edgeindexes) {
   free(rregions);
   free(dregions);
 
-  return;
-}
-
-void calcedges(cart *ccube, int **grid, edge *edgeindexes) {
-  int i, j;
   return;
 }
 
@@ -326,12 +318,12 @@ int main() {
 
   initedges(ccube, edgeindexes);
 
-  double j = 0.05;
+  double j = 0.025;
 
   for (i = 0; i < 30; i++) {
 
     for (i = 0; i < 8; i++) {
-      scube[i].t += 0.1;
+      scube[i].t += 0.05;
       /*if (scube[i].f >= 0) {
         scube[i].f += j;
       } else {
@@ -349,9 +341,9 @@ int main() {
     printf("\033[H\033[J"); // clear board
 
     printcube(ccube, edgeindexes);
-    printf("teta: %lf\nfi: %lf\n", scube[0].t / M_PI, scube[0].f / M_PI);
+    // printf("teta: %lf\nfi: %lf\n", scube[0].t / M_PI, scube[0].f / M_PI);
 
-    usleep(500000);
+    usleep(250000);
   }
 
   free(ccube);

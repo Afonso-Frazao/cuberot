@@ -1,2 +1,2 @@
 main:
-	gcc -g -lm -o cuberot cuberot.c
+	gcc -O3 -lm -o cuberot cuberot.c
